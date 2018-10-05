@@ -1,0 +1,4 @@
+SelfSignedCertLib/packages
+**/obj
+**/bin
+*.nupkg
