@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2016
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfSignedCertLib", "SelfSignedCertLib.csproj", "{014E679B-376F-4517-963D-4D0BBCB584A5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SelfSignedCertLib.Tests", "..\SelfSignedCertLib.Tests\SelfSignedCertLib.Tests.csproj", "{4B484CA9-0BE1-4BFF-BE08-4A90DB2D2993}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{014E679B-376F-4517-963D-4D0BBCB584A5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{014E679B-376F-4517-963D-4D0BBCB584A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{014E679B-376F-4517-963D-4D0BBCB584A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{014E679B-376F-4517-963D-4D0BBCB584A5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B484CA9-0BE1-4BFF-BE08-4A90DB2D2993}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B484CA9-0BE1-4BFF-BE08-4A90DB2D2993}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B484CA9-0BE1-4BFF-BE08-4A90DB2D2993}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B484CA9-0BE1-4BFF-BE08-4A90DB2D2993}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {31582187-96DD-43FF-85F1-901D3D1FA596}
+	EndGlobalSection
+EndGlobal
