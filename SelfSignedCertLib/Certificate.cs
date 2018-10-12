@@ -28,7 +28,7 @@ namespace SelfSignedCertLib
     /// Many thanks to this stackoverflow post:
     /// https://stackoverflow.com/a/22237794
     /// </remarks>
-    public class Certificate
+    public sealed class Certificate : CertificateBase
     {
         /// <summary>
         /// our newly minted certificate.
@@ -46,17 +46,24 @@ namespace SelfSignedCertLib
         /// </summary>
         /// <param name="ca">CA; its subject name will be used as issuer name</param>
         /// <param name="subjectName">subj name of the certificate being minted. A useful value is: "CN=localhost"</param>
+        /// <param name="keySize">key size; if zero or negative, we'll actually just use the key size of the CA</param>
         /// <param name="lifespan">life span</param>
         /// <remarks>
-        /// for simplicity's sake we'll use the ca key strength as the cert key strength
+        /// for simplicity's sake we'll default to the ca key strength as the cert key strength
         /// </remarks>
-        public Certificate(CertificateAuthority ca, string subjectName, TimeSpan? lifespan = null)
+        public Certificate(CertificateAuthority ca, string subjectName, int keySize = 0, TimeSpan? lifespan = null)
         {
+            //default key size is just match CA
+            if (keySize <= 0)
+            {
+                keySize = ca.KeySize;
+            }
+
             //default validity about two years
             var life = lifespan.GetValueOrDefault(TimeSpan.FromDays(365 * 2));
 
             Authority = ca;
-            Cert = GenerateSelfSignedCertificate(subjectName, ca.SubjectName, ca.PrivateKeyBouncy, ca.KeySize, life);
+            Cert = GenerateSelfSignedCertificate(subjectName, ca.SubjectName, ca.PrivateKeyBouncy, keySize, life);
         }
 
         /// <summary>
@@ -66,8 +73,12 @@ namespace SelfSignedCertLib
         /// <param name="issuerName"></param>
         /// <param name="issuerPrivKey"></param>
         /// <param name="keyStrength"></param>
-        /// <returns></returns>
-        private static X509Certificate2 GenerateSelfSignedCertificate(string subjectName, string issuerName, AsymmetricKeyParameter issuerPrivKey, int keyStrength, TimeSpan lifespan)
+        /// <returns>.net framewory style cert</returns>
+        /// <remarks>
+        /// Many thanks to this stackoverflow post:
+        /// https://stackoverflow.com/a/22237794
+        /// </remarks>
+        private X509Certificate2 GenerateSelfSignedCertificate(string subjectName, string issuerName, AsymmetricKeyParameter issuerPrivKey, int keyStrength, TimeSpan lifespan)
         {
             // Generating Random Numbers
             var random = new SecureRandom();
@@ -77,8 +88,7 @@ namespace SelfSignedCertLib
             var certificateGenerator = new X509V3CertificateGenerator();
 
             // Serial Number
-            var serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
-            certificateGenerator.SetSerialNumber(serialNumber);
+            certificateGenerator.SetSerialNumber(GenerateSerial());
 
             // Issuer and Subject Name
             var subjectDN = new X509Name(subjectName);
@@ -86,13 +96,8 @@ namespace SelfSignedCertLib
             certificateGenerator.SetIssuerDN(issuerDN);
             certificateGenerator.SetSubjectDN(subjectDN);
 
-            // we should really factor out some of this copy&paste here :)
-            // Valid For
-            var notBefore = DateTime.UtcNow.Date;
-            var notAfter = notBefore + lifespan;  //we get back a DateTime. neat.
-
-            certificateGenerator.SetNotBefore(notBefore);
-            certificateGenerator.SetNotAfter(notAfter);
+            //set validity
+            AssignLife(certificateGenerator, lifespan);
 
             // Subject Public Key
             AsymmetricCipherKeyPair subjectKeyPair;
@@ -130,6 +135,15 @@ namespace SelfSignedCertLib
             x509.PrivateKey = DotNetUtilities.ToRSA(rsaparams);
             return x509;
 
+        }
+
+        /// <summary>
+        /// serial prelude for cert
+        /// </summary>
+        /// <returns>0x0101</returns>
+        internal override IEnumerable<byte> GetSerialPrelude()
+        {
+            return new byte[] { 0x01, 0x01 };
         }
     }
 }
