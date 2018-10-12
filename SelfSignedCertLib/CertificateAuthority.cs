@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Xml.Serialization;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
@@ -18,17 +19,14 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities;
 using Org.BouncyCastle.X509;
+using SelfSignedCertLib.Serialization;
 
 namespace SelfSignedCertLib
 {
     /// <summary>
     /// Cert Authority
     /// </summary>
-    /// <remarks>
-    /// Many thanks to this stackoverflow post:
-    /// https://stackoverflow.com/a/22237794
-    /// </remarks>
-    public class CertificateAuthority
+    public sealed class CertificateAuthority : CertificateBase
     {
         /// <summary>
         /// our signature alg
@@ -88,18 +86,20 @@ namespace SelfSignedCertLib
         /// <param name="subjectName"></param>
         /// <param name="keyStrength"></param>
         /// <returns>bouncy private, dotnet public</returns>
-        private static (AsymmetricKeyParameter, X509Certificate2) GenerateCACertificate(string subjectName, int keyStrength, TimeSpan lifespan)
+        /// <remarks>
+        /// Many thanks to this stackoverflow post:
+        /// https://stackoverflow.com/a/22237794
+        /// </remarks>
+        private (AsymmetricKeyParameter, X509Certificate2) GenerateCACertificate(string subjectName, int keyStrength, TimeSpan lifespan)
         {
             // Generating Random Numbers
-            var random = new SecureRandom();
+            var random = _rand;
 
             // The Certificate Generator
             var certificateGenerator = new X509V3CertificateGenerator();
 
             // Serial Number
-            var serialNumber = BigIntegers.CreateRandomInRange(BigInteger.One, BigInteger.ValueOf(Int64.MaxValue), random);
-            certificateGenerator.SetSerialNumber(serialNumber);
-
+            certificateGenerator.SetSerialNumber(GenerateSerial());
 
             // Issuer and Subject Name
             var subjectDN = new X509Name(subjectName);
@@ -112,13 +112,8 @@ namespace SelfSignedCertLib
                 false,
                 new X509KeyUsage(X509KeyUsage.KeyCertSign | X509KeyUsage.DigitalSignature | X509KeyUsage.CrlSign));
 
-            // we should really factor out some of this copy&paste here :)
-            // Valid For
-            var notBefore = DateTime.UtcNow.Date;
-            var notAfter = notBefore + lifespan;  //we get back a DateTime. neat.
-
-            certificateGenerator.SetNotBefore(notBefore);
-            certificateGenerator.SetNotAfter(notAfter);
+            //set validity
+            AssignLife(certificateGenerator, lifespan);
 
             // Subject Public Key
             AsymmetricCipherKeyPair subjectKeyPair;
@@ -147,5 +142,96 @@ namespace SelfSignedCertLib
 
             return (issuerKeyPair.Private, pubonly);
         }
+
+        /// <summary>
+        /// serial prelude for CA
+        /// </summary>
+        /// <returns>0x0100</returns>
+        internal override IEnumerable<byte> GetSerialPrelude()
+        {
+            return new byte[] { 0x01, 0x00 };
+        }
+
+
+        #region XML Serialization
+        /// <summary>
+        /// build from xml serial struct
+        /// </summary>
+        /// <param name="xel"></param>
+        private CertificateAuthority(CertificateAuthorityForEphemeralCertsXml xel)
+        {
+            SubjectName = xel.SubjectName;
+            PrivateKeyBouncy = DotNetUtilities.GetRsaKeyPair(xel.PrivateKeyParameters).Private;
+            var cert = new X509Certificate2(xel.PublicKeyData);
+
+            PublicKey = cert;
+            KeySize = cert.PublicKey.Key.KeySize;
+
+            if (SubjectName != cert.SubjectName.Name)
+            {
+                throw new InvalidOperationException($"xml CA invalid: expecting subject {cert.SubjectName.Name}");
+            }
+            if (xel.Thumbprint != cert.Thumbprint)
+            {
+                throw new InvalidOperationException($"xml CA invalid: expecting Thumbprint {cert.Thumbprint}");
+            }
+            if (xel.SerialNumber != cert.SerialNumber)
+            {
+                throw new InvalidOperationException($"xml CA invalid: expecting Serial {cert.SerialNumber}");
+            }
+        }
+
+        /// <summary>
+        /// Cons, given xml string
+        /// </summary>
+        /// <param name="xmlstring">xml string that was pulled via ToXml</param>
+        /// <returns></returns>
+        public static CertificateAuthority FromXmlString(string xmlstring)
+        {
+            return new CertificateAuthority(Deser(xmlstring));
+        }
+
+        /// <summary>
+        /// export to proprietary xml format
+        /// </summary>
+        /// <returns>public key and private key in proprietary xml form, plus with some attributes redundantly expressed in the XML</returns>
+        public string ToXml()
+        {
+            var toser = new CertificateAuthorityForEphemeralCertsXml
+            {
+                SerialNumber = PublicKey.SerialNumber,
+                SubjectName = PublicKey.SubjectName.Name,
+                Expires = PublicKey.GetExpirationDateString(),
+                Thumbprint = PublicKey.Thumbprint,
+
+                PrivateKeyParameters = DotNetUtilities.ToRSAParameters((RsaPrivateCrtKeyParameters)PrivateKeyBouncy),
+                PublicKeyData = PublicKey.Export(X509ContentType.Cert)
+            };
+
+            var sb = new StringBuilder();
+            using (var sw = new StringWriter(sb))
+            {
+                var xser = new XmlSerializer(typeof(CertificateAuthorityForEphemeralCertsXml));
+                xser.Serialize(sw, toser);
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// deser helper
+        /// </summary>
+        /// <param name="xmlstring"></param>
+        /// <returns></returns>
+        private static CertificateAuthorityForEphemeralCertsXml Deser(string xmlstring)
+        {
+            var xser = new XmlSerializer(typeof(CertificateAuthorityForEphemeralCertsXml));
+            using (var sr = new StringReader(xmlstring))
+            {
+                return (CertificateAuthorityForEphemeralCertsXml)xser.Deserialize(sr);
+            }
+
+        }
+        #endregion
+
     }
 }

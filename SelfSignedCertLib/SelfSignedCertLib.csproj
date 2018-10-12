@@ -46,6 +46,8 @@
   <ItemGroup>
     <Compile Include="Certificate.cs" />
     <Compile Include="CertificateAuthority.cs" />
+    <Compile Include="CertificateBase.cs" />
+    <Compile Include="Serialization\CertificateAuthorityForEphemeralCertsXml.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -2,3 +2,5 @@ SelfSignedCertLib/packages
 **/obj
 **/bin
 *.nupkg
+
+**/.vs/*
