@@ -2,5 +2,8 @@
 
 Net Standard version coming soon.
 
+NuGet package:
+https://www.nuget.org/packages/SelfSignedCertLib
+
 Many thanks to the contributors on this stackoverflow post:
 https://stackoverflow.com/a/22237794
